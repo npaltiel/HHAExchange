@@ -1,4 +1,4 @@
-import APIINFO
+import APIkeys
 import requests
 import xml.etree.ElementTree as ET
 import pandas as pd
@@ -12,7 +12,6 @@ app_key = APIINFO.app_key
 patient_id = 20860460
 start_date = "2024-08-01T00:00:00"
 end_date = "2024-08-02T00:00:00"
-
 
 # Define the XML payload with correct SOAP 1.1 envelope for Search Visits
 soap_payload = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -35,7 +34,8 @@ soap_payload = f"""<?xml version="1.0" encoding="utf-8"?>
 # Define the headers, including content type for XML and SOAPAction
 headers = {
     'Content-Type': 'text/xml; charset=utf-8',  # Set content type to XML for SOAP 1.1
-    'SOAPAction': '"https://www.hhaexchange.com/apis/hhaws.integration/SearchVisits"',  # Correct the SOAPAction header for Search Visits
+    'SOAPAction': '"https://www.hhaexchange.com/apis/hhaws.integration/SearchVisits"',
+    # Correct the SOAPAction header for Search Visits
 }
 
 # Use the general endpoint URL for the SOAP service
@@ -51,7 +51,6 @@ if response.status_code != 200:
     # Print the error code and response content if there was an error
     print(f"Error {response.status_code}: {response.text}")
 
-
 # Parse the XML response
 root = ET.fromstring(response.text)
 
@@ -64,8 +63,9 @@ visit_ids = root.findall('.//ns:VisitID', namespace)
 # Extract the text from each 'VisitID' element
 visit_id_list = [visit_id.text for visit_id in visit_ids]
 
-
 visit_data_list = []
+
+
 async def get_visit_info(session, visit_id):
     # Define the XML payload with correct SOAP 1.1 envelope for Search Visits
     soap_payload = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -87,7 +87,8 @@ async def get_visit_info(session, visit_id):
     # Define the headers, including content type for XML and SOAPAction
     headers = {
         'Content-Type': 'text/xml; charset=utf-8',  # Set content type to XML for SOAP 1.1
-        'SOAPAction': '"https://www.hhaexchange.com/apis/hhaws.integration/GetVisitInfoV2"',  # Correct the SOAPAction header for Search Visits
+        'SOAPAction': '"https://www.hhaexchange.com/apis/hhaws.integration/GetVisitInfoV2"',
+        # Correct the SOAPAction header for Search Visits
     }
 
     # Use the general endpoint URL for the SOAP service
@@ -119,6 +120,7 @@ async def get_visit_info(session, visit_id):
             return parsed_data
         return None
 
+
 # Main function to handle asynchronous tasks
 async def main(visit_ids):
     async with aiohttp.ClientSession() as session:
@@ -138,4 +140,3 @@ end_time = time.time()
 
 time_for_day = start_visit_day - end_visit_day
 time_for_report = start_time - end_time
-
