@@ -1,6 +1,6 @@
 import APIkeys
 import requests
-from get_requests import get_offices, get_notification_methods
+from HHAExchange.get_requests import get_offices, get_notification_methods
 from datetime import date
 import xml.etree.ElementTree as ET
 import pandas as pd
@@ -13,36 +13,27 @@ app_secret = APIkeys.app_secret
 app_key = APIkeys.app_key
 
 
-async def main():
-    def get_employment_types(caregiver):
-        segment_start = '<Discipline>'
-        segment_end = '</Discipline>\n'
-        types = caregiver['Employment Type'].split(', ')
-
-        res = ''
-        for type in types:
-            res += f"{segment_start}{type}{segment_end}"
-
-        return res.rstrip('\n')
-
-    statuses = {'Inactive': 0, 'Active': 1, 'Hold': 2, 'On Leave': 3, 'Terminated': 4, 'Rejected': 5, 'Empty': 6}
+async def create_caregiver(caregiver):
     offices = await get_offices()
-    office_id = offices['CDP']
-    first_name = 'Test Nochum 2'
-    last_name = 'Test Paltiel 2'
-    birthdate = '1953-05-07'
-    gender = 'Male'
-    SSN = '999-45-1234'
+    office_id = offices['COR']
+    first_name = caregiver['First Name']
+    last_name = caregiver['Last Name']
+    birthdate = caregiver['DOB']
+    gender = 'Female'
+    SSN = caregiver['SSN']
     status_id = 1
     # employment_type = get_employment_types(caregiver)
-    employment_type = '<Discipline>PA</Discipline>'
-    employee_type = 'Applicant'
+    employment_type = '<Discipline>HHA</Discipline>'
+    employee_type = 'Employee'
     application_date = date.today().strftime('%Y-%m-%d')
-    zip_5 = '11213'
+    address1 = caregiver['Address 1']
+    city = caregiver['City']
+    zip_5 = caregiver['Zip Code']
+    state = caregiver['State']
     hha_pca_registry = ' '
     notifications_dict = await get_notification_methods()
     notification_id = notifications_dict['Mobile/Text Message']
-    phone = '917-112-3224'
+    phone = caregiver['Phone number']
 
     # Define the XML payload with correct SOAP 1.1 envelope for Create Caregivers
     soap_payload = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -67,7 +58,10 @@ async def main():
             <ApplicationDate>{application_date}</ApplicationDate>
             <HHAPCARegistryNumber>{hha_pca_registry}</HHAPCARegistryNumber>
             <Address>
+              <Address1>{address1}</Address1>
+              <City>{city}</City>
               <Zip5>{zip_5}</Zip5>
+              <State>{state}</State>
             </Address>
             <NotificationPreferences>
               <MethodID>{notification_id}</MethodID>
@@ -103,6 +97,3 @@ async def main():
             # Extract the text value
             caregiver_id = caregiver_id_element.text if caregiver_id_element is not None else "Not Found"
             print(f"Extracted CaregiverID: {caregiver_id}")
-
-
-asyncio.run(main())
