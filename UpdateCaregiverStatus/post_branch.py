@@ -5,7 +5,7 @@ from HHAExchange.asynchronous import retry_soap_request
 import re
 
 
-def transform_caregiver_info(xml_string, caregiver_id, status_id):
+def transform_caregiver_info(xml_string, caregiver_id, branch_id):
     """Extracts relevant patient info and converts it into the required structure."""
 
     # Define namespaces
@@ -33,8 +33,13 @@ def transform_caregiver_info(xml_string, caregiver_id, status_id):
                                                                                  namespaces) is not None else ""
     employee_type = caregiver_info.find("ns1:EmployeeType", namespaces).text if caregiver_info.find("ns1:EmployeeType",
                                                                                                     namespaces) is not None else ""
+    status_id = caregiver_info.find("ns1:Status/ns1:ID", namespaces).text if caregiver_info.find("ns1:Status/ns1:ID",
+                                                                                                 namespaces) is not None else ""
     application_date = caregiver_info.find("ns1:ApplicationDate", namespaces).text if caregiver_info.find(
         "ns1:ApplicationDate",
+        namespaces) is not None else ""
+    terminated_date = caregiver_info.find("ns1:TerminatedDate", namespaces).text if caregiver_info.find(
+        "ns1:TerminatedDate",
         namespaces) is not None else ""
     hha_pca_registry = caregiver_info.find("ns1:RegistryNumber", namespaces).text if caregiver_info.find(
         "ns1:RegistryNumber",
@@ -90,6 +95,7 @@ def transform_caregiver_info(xml_string, caregiver_id, status_id):
 
     new_xml += f"""
         <ApplicationDate>{application_date}</ApplicationDate>
+        <BranchID>{branch_id}</BranchID>
         <HHAPCARegistryNumber>{hha_pca_registry}</HHAPCARegistryNumber>
         <Address>
           <Zip5>{zip5}</Zip5>
@@ -103,12 +109,12 @@ def transform_caregiver_info(xml_string, caregiver_id, status_id):
     return new_xml
 
 
-async def update_status(caregiver_code, status_id):
+async def update_branch(caregiver_code, branch_id):
     caregiver_id = await get_caregiver_id(caregiver_code)
     demographics = await get_caregiver_demographics(caregiver_id)
 
     print(caregiver_code)
-    caregiver_info = transform_caregiver_info(demographics, caregiver_id, status_id)
+    caregiver_stuff = transform_caregiver_info(demographics, caregiver_id, branch_id)
 
     try:
 
@@ -122,7 +128,7 @@ async def update_status(caregiver_code, status_id):
                 <AppSecret>{app_secret}</AppSecret>
                 <AppKey>{app_key}</AppKey>
               </Authentication>
-              {caregiver_info}
+              {caregiver_stuff}
             </UpdateCaregiverDemographics>
           </soap:Body>
         </soap:Envelope>"""
