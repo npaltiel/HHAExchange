@@ -1,23 +1,21 @@
 import pandas as pd
 import asyncio
-from post_status import update_status
+from post_demographics import update_demographics
 
 semaphore = asyncio.Semaphore(5)
 
 
-async def safe_update_status(caregiver_code, status_id):
+async def safe_update_demographics(caregiver_code):
     async with semaphore:
-        return await update_status(caregiver_code, status_id)
+        return await update_demographics(caregiver_code)
 
 
 async def main():
     df_caregivers = pd.read_csv(
-        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\CDPAP Admission IDs for Status Change.csv")
-
-    status_id = 4
+        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Caregiver Codes for Discipline Updates.csv")
 
     results = await asyncio.gather(
-        *(safe_update_status(caregiver_code, status_id) for caregiver_code in
+        *(safe_update_demographics(caregiver_code) for caregiver_code in
           df_caregivers['Caregiver Code'])
     )
 
@@ -33,15 +31,8 @@ async def main():
     print(f"Total failures: {len(failed_caregivers)}")
     print("Failed Caregiver Codes and Error Messages:")
 
-    fail = []
     for admission_id, error_message in failed_caregivers:
         print(f"Admission ID: {admission_id}, Error: {error_message}")
-        fail.append(admission_id)
-
-    failures = pd.DataFrame()
-    failures['Admission ID'] = fail
-    excel_file = f'C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Failed_CDPAP_Status_Change.xlsx'
-    failures.to_excel(excel_file, index=False, sheet_name='Sheet1')
 
 
 asyncio.run(main())

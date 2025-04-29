@@ -6,7 +6,7 @@ from post_branch import update_branch
 
 async def main():
     df_patients = pd.read_csv(
-        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\ACD Transfer List.csv")
+        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\ACD Transfer List.csv")
 
     branches_dict = await get_branches()
     # Gather async tasks for team updates
