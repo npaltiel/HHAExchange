@@ -12,13 +12,11 @@ async def safe_update_status(caregiver_code, status_id):
 
 async def main():
     df_caregivers = pd.read_csv(
-        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\CDPAP Admission IDs for Status Change.csv")
-
-    status_id = 4
+        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Update Status from Caregiver Probation.csv")
 
     results = await asyncio.gather(
-        *(safe_update_status(caregiver_code, status_id) for caregiver_code in
-          df_caregivers['Caregiver Code'])
+        *(safe_update_status(caregiver_code, status_id) for caregiver_code, status_id in
+          zip(df_caregivers['Caregiver Code'], df_caregivers['Status']))
     )
 
     # Count successes and collect failure codes
@@ -40,7 +38,7 @@ async def main():
 
     failures = pd.DataFrame()
     failures['Admission ID'] = fail
-    excel_file = f'C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Failed_CDPAP_Status_Change.xlsx'
+    excel_file = f'C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Failed_Status_Change_Hold.xlsx'
     failures.to_excel(excel_file, index=False, sheet_name='Sheet1')
 
 

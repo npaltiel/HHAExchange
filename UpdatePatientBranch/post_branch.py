@@ -1,4 +1,4 @@
-from APIkeys import app_name, app_secret, app_key
+from HHAExchange.APIkeys import app_name, app_secret, app_key
 import math
 import xml.etree.ElementTree as ET
 import re

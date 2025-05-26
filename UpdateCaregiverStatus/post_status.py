@@ -1,4 +1,4 @@
-from APIkeys import app_name, app_secret, app_key
+from HHAExchange.APIkeys import app_name, app_secret, app_key
 import xml.etree.ElementTree as ET
 from HHAExchange.get_requests import get_caregiver_id, get_caregiver_demographics
 from HHAExchange.asynchronous import retry_soap_request

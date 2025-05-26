@@ -1,6 +1,6 @@
-from APIkeys import app_name, app_secret, app_key
+from HHAExchange.APIkeys import app_name, app_secret, app_key
 import xml.etree.ElementTree as ET
-from asynchronous import async_soap_request
+from HHAExchange.asynchronous import async_soap_request
 import asyncio
 
 

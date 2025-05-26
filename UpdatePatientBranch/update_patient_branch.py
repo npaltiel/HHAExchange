@@ -12,7 +12,7 @@ async def main():
     # Gather async tasks for team updates
 
     results = await asyncio.gather(
-        *(update_branch(admission_id, branches_dict['ACD TRANSFER']) for admission_id in
+        *(update_branch(admission_id, branches_dict['None']) for admission_id in
           df_patients['Admission ID'])
     )
 
