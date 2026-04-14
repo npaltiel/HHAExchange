@@ -272,28 +272,57 @@ async def get_caregiver_demographics(caregiver_id):
     return xml_string
 
 
-async def get_medical_results(medical_id):
+async def get_caregiver_medicals(caregiver_id):
     payload = f"""<?xml version="1.0" encoding="utf-8"?>
-    <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-      <soap:Body>
-        <GetCaregiverMedicalResults xmlns="https://www.hhaexchange.com/apis/hhaws.integration">
-          <Authentication>
-            <AppName>{app_name}</AppName>
-            <AppSecret>{app_secret}</AppSecret>
-            <AppKey>{app_key}</AppKey>
-          </Authentication>
-          <OfficeID>2365</OfficeID>
-          <MedicalID>{medical_id}</MedicalID>
-        </GetCaregiverMedicalResults>
-      </soap:Body>
-    </soap:Envelope>"""
-
+            <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+              <soap:Body>
+                <GetCaregiverMedicalDetails xmlns="https://www.hhaexchange.com/apis/hhaws.integration">
+                  <Authentication>
+                    <AppName>{app_name}</AppName>
+                    <AppSecret>{app_secret}</AppSecret>
+                    <AppKey>{app_key}</AppKey>
+                  </Authentication>
+                  <SearchFilter>
+                    <CaregiverID>{caregiver_id}</CaregiverID>
+                  </SearchFilter>
+                </GetCaregiverMedicalDetails>
+              </soap:Body>
+            </soap:Envelope>"""
     response_content = await async_soap_request('https://app.hhaexchange.com/integration/ent/v1.8/ws.asmx', payload,
-                                                '"https://www.hhaexchange.com/apis/hhaws.integration/GetCaregiverMedicalResults"')
+                                                '"https://www.hhaexchange.com/apis/hhaws.integration/GetCaregiverMedicalDetails"')
     root = ET.fromstring(response_content)
     xml_string = ET.tostring(root, encoding='utf-8').decode('utf-8')
-    ns = {'ns1': 'https://www.hhaexchange.com/apis/hhaws.integration'}
-    medicals_dict = {branch.find('ns1:MedicalName', ns).text: branch.find('ns1:MedicalID', ns).text for branch in
-                     root.findall('.//ns1:Medical', ns)}
+
+    return xml_string
+
+
+async def get_caregiver_other_compliance(caregiver_id):
+    payload = f"""<?xml version="1.0" encoding="utf-8"?>
+            <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+              <soap:Body>
+                <GetCaregiverOtherCompliance xmlns="https://www.hhaexchange.com/apis/hhaws.integration">
+                  <Authentication>
+                    <AppName>{app_name}</AppName>
+                    <AppSecret>{app_secret}</AppSecret>
+                    <AppKey>{app_key}</AppKey>
+                  </Authentication>
+                  <OfficeID>2365</OfficeID>
+                </GetCaregiverOtherCompliance>
+              </soap:Body>
+            </soap:Envelope>"""
+    response_content = await async_soap_request('https://app.hhaexchange.com/integration/ent/v1.8/ws.asmx', payload,
+                                                '"https://www.hhaexchange.com/apis/hhaws.integration/GetCaregiverOtherCompliance"')
+    root = ET.fromstring(response_content)
+    xml_string = ET.tostring(root, encoding='utf-8').decode('utf-8')
+
+    return xml_string
+
+
+async def generic_call(xml_input, endpoint):
+    payload = f"""<?xml version="1.0" encoding="utf-8"?>{xml_input}"""
+    response_content = await async_soap_request('https://app.hhaexchange.com/integration/ent/v1.8/ws.asmx', payload,
+                                                f'"https://www.hhaexchange.com/apis/hhaws.integration/{endpoint}"')
+    root = ET.fromstring(response_content)
+    xml_string = ET.tostring(root, encoding='utf-8').decode('utf-8')
 
     return xml_string

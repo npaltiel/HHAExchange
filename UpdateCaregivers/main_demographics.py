@@ -32,7 +32,7 @@ async def main():
     print("Failed Caregiver Codes and Error Messages:")
 
     for admission_id, error_message in failed_caregivers:
-        print(f"Admission ID: {admission_id}, Error: {error_message}")
+        print(f"Caregiver Code: {admission_id}, Error: {error_message}")
 
 
 asyncio.run(main())

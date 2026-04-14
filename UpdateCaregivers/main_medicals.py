@@ -1,42 +1,101 @@
 import pandas as pd
 import asyncio
-from post_medicals import create_medical
+from post_medicals import update_medical, create_medical, process_flu_medical, process_update_only_medical
 
-semaphore = asyncio.Semaphore(5)
+semaphore = asyncio.Semaphore(3)
 
 
-async def safe_create_medical(caregiver_code, medicals_id):
+# async def safe_update_medical(caregiver_code, medical_id, date_performed, result_id):
+#     async with semaphore:
+#         return await update_medical(caregiver_code, medical_id, date_performed, result_id)
+#
+#
+# async def safe_create_medical(caregiver_code, medical_id, date_performed, result_id):
+#     async with semaphore:
+#         return await create_medical(caregiver_code, medical_id, date_performed, result_id)
+
+
+async def safe_process_flu_medical(caregiver_code, medical_id, date_performed, result_id):
     async with semaphore:
-        return await create_medical(caregiver_code, medicals_id)
+        return await process_flu_medical(caregiver_code, medical_id, date_performed, result_id)
+
+
+async def safe_process_update_only_medical(caregiver_code, medical_id, date_performed, result_id):
+    async with semaphore:
+        return await process_update_only_medical(caregiver_code, medical_id, date_performed, result_id)
+
+
+result_map = {
+    'Completed (In Office)': '86358',
+    'Completed (Elsewhere)': '86359',  # Flu Vaccine
+    'Exempt': '86360',
+    'Declined': '86361',
+    'Negative': '86379',  # TB Screen
+    'Completed': '86350'  # Annual Health Assessment
+}
+
+medical_processor_map = {
+    '75560': safe_process_flu_medical,  # Flu Vaccine
+    '75556': safe_process_update_only_medical,  # Annual Health Assessment
+    '75569': safe_process_update_only_medical,  # TB Screen
+}
 
 
 async def main():
     df_caregivers = pd.read_csv(
-        "C:\\Users\\nochu\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Caregiver Codes for Medicals Update.csv")
+        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Caregiver Codes for Medicals Update.csv")
+    df_caregivers = df_caregivers.dropna(subset=['Medical ID'])
+    df_caregivers['Medical ID'] = df_caregivers['Medical ID'].astype(int).astype(str)
 
-    medical_id = '75560'
-    results = [('Completed (In Office)', '86358'), ('Completed (Elsewhere)', '86359'), ('Exempt', '86360'),
-               ('Declined', '86361')]
+    tasks = []
 
-    results = await asyncio.gather(
-        *(safe_create_medical(caregiver_code, medical_id) for caregiver_code in
-          df_caregivers['Caregiver Code'])
-    )
+    for _, row in df_caregivers.iterrows():
+        caregiver_code = row['Caregiver Code']
+        date_performed = row['Date Performed']
+        result_text = row['Result']
+        medical_id = row['Medical ID']
 
-    # Count successes and collect failure codes
-    first_success_count = sum(1 for _, success, _ in results if success)
-    # second_success_count = sum(1 for _, success, _ in results2 if success)
-    failed_caregivers = [(admission_id, error_message) for admission_id, success, error_message in results if
-                         not success]
+        result_id = result_map.get(result_text)
+        processor = medical_processor_map.get(medical_id)
 
-    # Output results
-    print(f"Initial successes: {first_success_count}")
-    # print(f"Secondary successes: {second_success_count}")
-    print(f"Total failures: {len(failed_caregivers)}")
-    print("Failed Caregiver Codes and Error Messages:")
+        if not result_id:
+            print(f"Skipping {caregiver_code}: unknown result '{result_text}'")
+            continue
 
-    for admission_id, error_message in failed_caregivers:
-        print(f"Admission ID: {admission_id}, Error: {error_message}")
+        if not processor:
+            print(f"Skipping {caregiver_code}: no processor configured for Medical ID {medical_id}")
+            continue
+
+        tasks.append(
+            processor(
+                caregiver_code,
+                medical_id,
+                date_performed,
+                result_id
+            )
+        )
+
+    results = await asyncio.gather(*tasks)
+
+    failure_rows = []
+    for caregiver_code, success, error_message in results:
+        if not success:
+            failure_rows.append({
+                "Caregiver Code": caregiver_code,
+                "Error Message": error_message
+            })
+
+    if failure_rows:
+        failures_df = pd.DataFrame(failure_rows)
+
+        failures_df.to_csv(
+            r"C:\Users\nochum.paltiel\OneDrive - Anchor Home Health care\Documents\Exchange API Updates\Medical_Update_Failures.csv",
+            index=False
+        )
+
+        print(f"Saved {len(failure_rows)} failures to CSV")
+    else:
+        print("No failures 🎉")
 
 
 asyncio.run(main())
