@@ -33,7 +33,7 @@ POLL_TIMEOUT    = 300  # seconds before giving up (5 minutes)
 
 def download_gimbal_report() -> Path:
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
 
