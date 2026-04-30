@@ -26,7 +26,7 @@ from post_medicals import process_update_only_medical
 
 load_dotenv()
 
-DOWNLOAD_DIR = Path(os.environ.get("GIMBAL_DOWNLOAD_DIR", r"C:\Users\nochum.paltiel\Documents\Gimbal"))
+DOWNLOAD_DIR = Path(os.environ.get("GIMBAL_DOWNLOAD_DIR", r"C:\Users\nochum.paltiel\Documents\Gimbal Medicals Automation"))
 FAILURES_DIR = DOWNLOAD_DIR / "Failures"
 
 SEMAPHORE = asyncio.Semaphore(3)
@@ -59,14 +59,12 @@ async def upload_csv(csv_path: Path) -> list[dict]:
     df = df.dropna(subset=["Medical ID"])
     df["Medical ID"] = df["Medical ID"].astype(int).astype(str)
 
-    rows = []
     tasks = []
     for _, row in df.iterrows():
         result_id = result_map.get(row["Result"])
         if not result_id:
             print(f"  Skipping {row['Caregiver Code']}: unknown result '{row['Result']}'")
             continue
-        rows.append(row)
         tasks.append(safe_process(
             row["Caregiver Code"],
             row["Medical ID"],
@@ -77,7 +75,7 @@ async def upload_csv(csv_path: Path) -> list[dict]:
     results = await asyncio.gather(*tasks)
 
     output = []
-    for row, (caregiver_code, success, error_message) in zip(rows, results):
+    for caregiver_code, success, error_message in results:
         output.append({
             "Caregiver Code": caregiver_code,
             "Success":        success,
@@ -103,7 +101,6 @@ def save_summary(all_results: dict[str, list[dict]]):
     """Save one summary CSV with a row per caregiver and TRUE/FALSE per medical."""
     today = date.today().strftime("%Y-%m-%d")
 
-    # Build a dict: caregiver_code -> {medical_name: bool}
     summary = {}
     for medical_id, results in all_results.items():
         col_name = MEDICAL_NAMES[medical_id]
@@ -140,10 +137,11 @@ async def upload_all(csv_paths: dict[str, Path]):
         save_failures(results, medical_id)
 
     save_summary(all_results)
+    return all_results
 
 
-def run(csv_paths: dict[str, Path]):
-    asyncio.run(upload_all(csv_paths))
+def run(csv_paths: dict[str, Path]) -> dict[str, list[dict]]:
+    return asyncio.run(upload_all(csv_paths))
 
 
 if __name__ == "__main__":
