@@ -30,7 +30,7 @@ DB_CONN = (
 MAILGUN_API_KEY = os.environ["APIKEY_MAILGUN"]
 MAILGUN_DOMAIN  = os.environ["MAILGUN_DOMAIN"]
 FROM_EMAIL      = "nochum.paltiel@anchorhc.org"
-TO_EMAILS       = [os.environ["NOTIFY_EMAIL"]]
+TO_EMAILS = [e.strip() for e in os.environ["NOTIFY_EMAIL"].split(",")]
 
 QUERY = """
 SELECT
