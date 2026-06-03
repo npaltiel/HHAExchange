@@ -77,7 +77,7 @@ def download_gimbal_report() -> Path:
 
         # ── Step 6: Catch new tab and poll until Generated ────────────────────
         print("Waiting for report-management tab to open...")
-        with context.expect_page() as new_page_info:
+        with context.expect_page(timeout=60000) as new_page_info:
             pass
         report_page = new_page_info.value
         report_page.wait_for_url("**/report-management**", timeout=15000)
