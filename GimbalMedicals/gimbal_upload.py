@@ -29,7 +29,7 @@ load_dotenv()
 DOWNLOAD_DIR = Path(os.environ.get("GIMBAL_DOWNLOAD_DIR", r"C:\Users\nochum.paltiel\Documents\Gimbal Medicals Automation"))
 FAILURES_DIR = DOWNLOAD_DIR / "Failures"
 
-SEMAPHORE = asyncio.Semaphore(3)
+SEMAPHORE = asyncio.Semaphore(2)
 
 result_map = {
     "Completed (In Office)": "86358",
@@ -37,12 +37,14 @@ result_map = {
     "Exempt":                "86360",
     "Declined":              "86361",
     "Negative":              "86379",
+    "Negative - PA":         "187751",
     "Completed":             "86350",
 }
 
 MEDICAL_NAMES = {
-    "75556": "Annual Health Assessment",
-    "75569": "TB Screen",
+    "75556":    "Annual Health Assessment",
+    "75569":    "TB Screen",
+    "75569_pa": "TB Screen (PA)",
 }
 
 

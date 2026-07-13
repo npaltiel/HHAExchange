@@ -22,18 +22,26 @@ MEDICALS = [
     {"name": "tb_screen",                "medical_id": "75569", "result": "Negative"},
 ]
 
+PA_MEDICALS = [
+    {"name": "tb_screen_pa", "pipeline_key": "75569_pa", "medical_id": "75569", "result": "Negative - PA", "caregiver_prefix": "OHZ"},
+]
 
-def transform(xlsx_path: Path) -> dict[str, Path]:
+
+def transform(xlsx_path: Path, medicals: list[dict] = None) -> dict[str, Path]:
+    if medicals is None:
+        medicals = MEDICALS
+
     print(f"\nTransforming: {xlsx_path.name}")
     df = pd.read_excel(xlsx_path)
     print(f"  {len(df)} rows loaded.")
 
     output_paths = {}
 
-    for medical in MEDICALS:
+    for medical in medicals:
+        prefix = medical.get("caregiver_prefix", "ANT")
         records = []
         for _, row in df.iterrows():
-            caregiver_code = f"ANT-{str(row['User Code']).strip()}"
+            caregiver_code = f"{prefix}-{str(row['User Code']).strip()}"
 
             submitted_raw = str(row["Submitted Date"]).strip()
             submitted_raw = submitted_raw.replace(" AM", "").replace(" PM", "")
@@ -52,9 +60,14 @@ def transform(xlsx_path: Path) -> dict[str, Path]:
         csv_path = DOWNLOAD_DIR / f"{medical['name']}_{today}.csv"
         out_df.to_csv(csv_path, index=False)
         print(f"  Saved {len(records)} records -> {csv_path}")
-        output_paths[medical["medical_id"]] = csv_path
+        key = medical.get("pipeline_key", medical["medical_id"])
+        output_paths[key] = csv_path
 
     return output_paths
+
+
+def transform_pa(xlsx_path: Path) -> dict[str, Path]:
+    return transform(xlsx_path, PA_MEDICALS)
 
 
 if __name__ == "__main__":
