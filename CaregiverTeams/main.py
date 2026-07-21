@@ -10,9 +10,11 @@ Schedule via Windows Task Scheduler pointing to this file.
 """
 
 import asyncio
+import csv
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -22,6 +24,31 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from get_requests import get_teams
 from CaregiverTeams.db_queries import get_caregivers, get_discipline_notes, sync_finals, get_finals, compute_team_changes
 from CaregiverTeams.post_team import update_team
+
+LOG_DIR      = Path(__file__).parent / 'logs'
+SUMMARY_LOG  = LOG_DIR / 'summary.csv'
+FAILURES_LOG = LOG_DIR / 'failures.csv'
+
+
+def log_summary(run_time, n_prob, n_tier1, n_tier2, n_back1, successes, failures):
+    LOG_DIR.mkdir(exist_ok=True)
+    write_header = not SUMMARY_LOG.exists()
+    with open(SUMMARY_LOG, 'a', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        if write_header:
+            w.writerow(['RunDate', 'Probation', 'Tier1', 'Tier2', 'BackTo1', 'Successes', 'Failures'])
+        w.writerow([run_time, n_prob, n_tier1, n_tier2, n_back1, successes, failures])
+
+
+def log_failures(run_time, still_failed, code_to_team):
+    LOG_DIR.mkdir(exist_ok=True)
+    write_header = not FAILURES_LOG.exists()
+    with open(FAILURES_LOG, 'a', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        if write_header:
+            w.writerow(['RunDate', 'CaregiverCode', 'TargetTeam', 'Error'])
+        for code, err in still_failed:
+            w.writerow([run_time, code, code_to_team.get(code, ''), err])
 
 
 async def run_updates(make_probation, make_tier1, make_tier2, back_to_1, teams_dict):
@@ -57,9 +84,20 @@ async def main():
         f"Back→1: {len(back_to_1)}"
     )
 
-    if not (len(make_probation) + len(make_tier1) + len(make_tier2) + len(back_to_1)):
+    n_prob, n_tier1, n_tier2, n_back1 = len(make_probation), len(make_tier1), len(make_tier2), len(back_to_1)
+    run_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    if not (n_prob + n_tier1 + n_tier2 + n_back1):
         print("No team changes needed.")
+        log_summary(run_time, 0, 0, 0, 0, 0, 0)
         return
+
+    code_to_team = (
+        {r.CaregiverCode: 'Probation' for _, r in make_probation.iterrows()} |
+        {r.CaregiverCode: 'Tier 1'    for _, r in make_tier1.iterrows()} |
+        {r.CaregiverCode: 'Tier 1'    for _, r in back_to_1.iterrows()} |
+        {r.CaregiverCode: 'Tier 2'    for _, r in make_tier2.iterrows()}
+    )
 
     print("Fetching team IDs from HHAExchange API...")
     teams_dict = await get_teams()
@@ -71,8 +109,7 @@ async def main():
     pass1_ok  = sum(1 for _, success, _ in results if success)
     print(f"  Pass 1: {pass1_ok} succeeded, {len(failures)} failed")
 
-    results2  = []
-    pass2_ok  = 0
+    pass2_ok     = 0
     still_failed = []
 
     if failures:
@@ -91,11 +128,13 @@ async def main():
         for code, err in still_failed:
             print(f"    FAILED  {code}: {err}")
 
-    print(
-        f"\n[{datetime.now():%Y-%m-%d %H:%M}] Done — "
-        f"total successes: {pass1_ok + pass2_ok}, "
-        f"total failures: {len(still_failed)}"
-    )
+    total_ok  = pass1_ok + pass2_ok
+    total_fail = len(still_failed)
+    print(f"\n[{run_time}] Done — total successes: {total_ok}, total failures: {total_fail}")
+
+    log_summary(run_time, n_prob, n_tier1, n_tier2, n_back1, total_ok, total_fail)
+    if still_failed:
+        log_failures(run_time, still_failed, code_to_team)
 
 
 if __name__ == '__main__':
