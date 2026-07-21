@@ -1,0 +1,6 @@
+.env
+__pycache__/
+_backups/
+finals_seed.csv
+_backup_*.xml
+_backup_*.json
