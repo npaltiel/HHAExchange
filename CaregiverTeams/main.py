@@ -51,6 +51,20 @@ def log_failures(run_time, still_failed, code_to_team):
             w.writerow([run_time, code, code_to_team.get(code, ''), err])
 
 
+def log_changes(run_date, code_from_team, code_to_team, final_outcomes):
+    LOG_DIR.mkdir(exist_ok=True)
+    path = LOG_DIR / f'changes_{run_date}.csv'
+    write_header = not path.exists()
+    with open(path, 'a', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        if write_header:
+            w.writerow(['CaregiverCode', 'TeamFrom', 'TeamTo', 'Outcome'])
+        for code in code_to_team:
+            success, _ = final_outcomes.get(code, (False, ''))
+            w.writerow([code, code_from_team.get(code, ''), code_to_team[code],
+                        'Success' if success else 'Failure'])
+
+
 async def run_updates(make_probation, make_tier1, make_tier2, back_to_1, teams_dict):
     prob_id  = teams_dict['Probation']
     tier1_id = teams_dict['Tier 1']
@@ -98,6 +112,12 @@ async def main():
         {r.CaregiverCode: 'Tier 1'    for _, r in back_to_1.iterrows()} |
         {r.CaregiverCode: 'Tier 2'    for _, r in make_tier2.iterrows()}
     )
+    code_from_team = (
+        {r.CaregiverCode: r.Team for _, r in make_probation.iterrows()} |
+        {r.CaregiverCode: r.Team for _, r in make_tier1.iterrows()} |
+        {r.CaregiverCode: r.Team for _, r in back_to_1.iterrows()} |
+        {r.CaregiverCode: r.Team for _, r in make_tier2.iterrows()}
+    )
 
     print("Fetching team IDs from HHAExchange API...")
     teams_dict = await get_teams()
@@ -111,6 +131,7 @@ async def main():
 
     pass2_ok     = 0
     still_failed = []
+    results2     = []
 
     if failures:
         failed_codes = {code for code, _ in failures}
@@ -132,7 +153,13 @@ async def main():
     total_fail = len(still_failed)
     print(f"\n[{run_time}] Done — total successes: {total_ok}, total failures: {total_fail}")
 
+    final_outcomes = {code: (True, '')  for code, success, _   in results  if success}
+    final_outcomes |= {code: (True, '') for code, success, _   in results2 if success}
+    final_outcomes |= {code: (False, err) for code, err        in still_failed}
+
+    run_date = datetime.now().strftime('%Y-%m-%d')
     log_summary(run_time, n_prob, n_tier1, n_tier2, n_back1, total_ok, total_fail)
+    log_changes(run_date, code_from_team, code_to_team, final_outcomes)
     if still_failed:
         log_failures(run_time, still_failed, code_to_team)
 
