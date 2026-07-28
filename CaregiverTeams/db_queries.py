@@ -164,6 +164,8 @@ def compute_team_changes(df_caregivers, df_notes, finals_codes):
     def probation_start(row):
         if pd.isnull(row['FirstWorkDate']):
             return today
+        if pd.isnull(row['EffectiveHireDate']):
+            return row['FirstWorkDate']
         if row['FirstWorkDate'] >= row['EffectiveHireDate']:
             return row['FirstWorkDate']
         if row['LastWorkDate'] >= row['EffectiveHireDate']:
@@ -174,11 +176,11 @@ def compute_team_changes(df_caregivers, df_notes, finals_codes):
 
     make_probation = df[
         (df['Status'] == 'Active') & (df['Team'] != 'Probation') &
-        (~df['Disciplinary']) & (df['ProbationStartDate'] >= (today - timedelta(days=30)))
+        (~df['Disciplinary']) & (df['ProbationStartDate'].dt.date >= (today - timedelta(days=30)).date())
     ].copy().reset_index(drop=True)
 
     make_tier1 = df[
-        (df['Status'] == 'Active') & (df['Team'] == 'Probation') &
+        (df['Status'] == 'Active') & (df['Team'].isin(['Probation', ''])) &
         (df['ProbationStartDate'] < (today - timedelta(days=30))) & (~df['Disciplinary'])
     ].copy().reset_index(drop=True)
 
