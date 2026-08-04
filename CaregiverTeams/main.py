@@ -65,16 +65,24 @@ def log_changes(run_date, code_from_team, code_to_team, final_outcomes):
                         'Success' if success else 'Failure'])
 
 
+semaphore = asyncio.Semaphore(20)
+
+
+async def safe_update_team(*args, **kwargs):
+    async with semaphore:
+        return await update_team(*args, **kwargs)
+
+
 async def run_updates(make_probation, make_tier1, make_tier2, back_to_1, teams_dict):
     prob_id  = teams_dict['Probation']
     tier1_id = teams_dict['Tier 1']
     tier2_id = teams_dict['Tier 2']
 
     tasks = [
-        *(update_team(r.CaregiverID, r.CaregiverCode, prob_id)                    for _, r in make_probation.iterrows()),
-        *(update_team(r.CaregiverID, r.CaregiverCode, tier1_id, add_hcss=True)    for _, r in make_tier1.iterrows()),
-        *(update_team(r.CaregiverID, r.CaregiverCode, tier1_id)                   for _, r in back_to_1.iterrows()),
-        *(update_team(r.CaregiverID, r.CaregiverCode, tier2_id)                   for _, r in make_tier2.iterrows()),
+        *(safe_update_team(r.CaregiverID, r.CaregiverCode, prob_id)                    for _, r in make_probation.iterrows()),
+        *(safe_update_team(r.CaregiverID, r.CaregiverCode, tier1_id, add_hcss=True)    for _, r in make_tier1.iterrows()),
+        *(safe_update_team(r.CaregiverID, r.CaregiverCode, tier1_id)                   for _, r in back_to_1.iterrows()),
+        *(safe_update_team(r.CaregiverID, r.CaregiverCode, tier2_id)                   for _, r in make_tier2.iterrows()),
     ]
     return await asyncio.gather(*tasks)
 

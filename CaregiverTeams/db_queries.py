@@ -48,7 +48,7 @@ def get_caregivers():
     WHERE c.OfficeID = ?
       AND c.EmployeeType = 'E'
     """
-    with pyodbc.connect(DB_CONN) as conn:
+    with pyodbc.connect(REPLICA_CONN) as conn:
         df = pd.read_sql(query, conn, params=[OFFICE_ID])
 
     df['HireDate']      = pd.to_datetime(df['HireDate'])
@@ -181,7 +181,7 @@ def compute_team_changes(df_caregivers, df_notes, finals_codes):
 
     make_tier1 = df[
         (df['Status'] == 'Active') & (df['Team'].isin(['Probation', ''])) &
-        (df['ProbationStartDate'] < (today - timedelta(days=30))) & (~df['Disciplinary'])
+        (df['ProbationStartDate'].dt.date < (today - timedelta(days=30)).date()) & (~df['Disciplinary'])
     ].copy().reset_index(drop=True)
 
     make_tier2 = df[
