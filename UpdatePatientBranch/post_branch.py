@@ -67,6 +67,8 @@ def transform_patient_info(xml_string, branch_id):
                                                                                           namespaces) is not None else ""
     first_name = patient_info.find("ns1:FirstName", namespaces).text if patient_info.find("ns1:FirstName",
                                                                                           namespaces) is not None else ""
+    middle_name = patient_info.find("ns1:MiddleName", namespaces)
+    middle_name = middle_name.text if middle_name is not None and middle_name.text is not None else ""
     last_name = patient_info.find("ns1:LastName", namespaces).text if patient_info.find("ns1:LastName",
                                                                                         namespaces) is not None else ""
     birth_date = patient_info.find("ns1:BirthDate", namespaces).text if patient_info.find("ns1:BirthDate",
@@ -102,6 +104,7 @@ def transform_patient_info(xml_string, branch_id):
     new_xml = f"""<PatientInfo>
     <PatientID>{patient_id}</PatientID>
     <FirstName>{first_name}</FirstName>
+    <MiddleName>{middle_name}</MiddleName>
     <LastName>{last_name}</LastName>
     <BirthDate>{birth_date}</BirthDate>
     <Gender>{gender}</Gender>
@@ -135,12 +138,16 @@ def transform_patient_info(xml_string, branch_id):
 
 
 async def update_branch(admission_id, branch_id):
-    patient_id = await get_patient_id(admission_id)
-    demographics = await get_patient_demographics(patient_id)
-
-    patient_info = transform_patient_info(demographics, branch_id)
-
     try:
+        patient_id = await get_patient_id(admission_id)
+        if patient_id is None:
+            return admission_id, False, "Patient not found"
+
+        demographics = await get_patient_demographics(patient_id)
+        if demographics is None:
+            return admission_id, False, "Demographics not found"
+
+        patient_info = transform_patient_info(demographics, branch_id)
 
         # Define the XML payload with correct SOAP 1.1 envelope for Update Patient Demographics
         payload = f"""<?xml version="1.0" encoding="utf-8"?>

@@ -2,7 +2,7 @@ import pandas as pd
 import asyncio
 from post_medicals import update_medical, create_medical, process_flu_medical, process_update_only_medical
 
-semaphore = asyncio.Semaphore(3)
+semaphore = asyncio.Semaphore(2)
 
 
 # async def safe_update_medical(caregiver_code, medical_id, date_performed, result_id):
@@ -30,7 +30,8 @@ result_map = {
     'Completed (Elsewhere)': '86359',  # Flu Vaccine
     'Exempt': '86360',
     'Declined': '86361',
-    'Negative': '86379',  # TB Screen
+    'Negative - NY': '86379',  # TB Screen
+    'Negative - PA': '187751',  # TB Screen
     'Completed': '86350'  # Annual Health Assessment
 }
 

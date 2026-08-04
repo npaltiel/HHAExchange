@@ -3,6 +3,14 @@ import asyncio
 from HHAExchange.get_requests import get_branches
 from post_branch import update_branch
 
+semaphore = asyncio.Semaphore(5)
+
+
+async def safe_update_branch(admission_id, branch_id):
+    async with semaphore:
+        print(admission_id)
+        return await update_branch(admission_id, branch_id)
+
 
 async def main():
     df_patients = pd.read_csv(
@@ -12,7 +20,7 @@ async def main():
     # Gather async tasks for team updates
 
     results = await asyncio.gather(
-        *(update_branch(admission_id, branches_dict['ACD TRANSFER']) for admission_id in
+        *(safe_update_branch(admission_id, branches_dict['ACD TRANSFER']) for admission_id in
           df_patients['Admission ID'])
     )
 
@@ -30,6 +38,14 @@ async def main():
 
     for admission_id, error_message in failed_patients:
         print(f"Admission ID: {admission_id}, Error: {error_message}")
+
+    if failed_patients:
+        df_failed = pd.DataFrame(failed_patients, columns=['Admission ID', 'Error Message'])
+        df_failed.to_csv(
+            "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Update Patient Branch Failures.csv",
+            index=False
+        )
+        print("Failures written to CSV.")
 
 
 # Run the asynchronous main function

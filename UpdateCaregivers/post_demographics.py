@@ -1,4 +1,4 @@
-from APIkeys import app_name, app_secret, app_key
+from HHAExchange.APIkeys import app_name, app_secret, app_key
 import xml.etree.ElementTree as ET
 from HHAExchange.get_requests import get_caregiver_id, get_caregiver_demographics
 from HHAExchange.asynchronous import retry_soap_request
@@ -7,6 +7,10 @@ import re
 
 def transform_caregiver_info(xml_string, caregiver_id):
     """Extracts relevant patient info and converts it into the required structure."""
+
+    def get_text(element, path):
+        node = element.find(path, namespaces)
+        return node.text if node is not None and node.text is not None else ""
 
     # Define namespaces
     namespaces = {
@@ -23,6 +27,10 @@ def transform_caregiver_info(xml_string, caregiver_id):
     # Extract required fields
     first_name = caregiver_info.find("ns1:FirstName", namespaces).text if caregiver_info.find("ns1:FirstName",
                                                                                               namespaces) is not None else ""
+
+    middle_name = caregiver_info.find("ns1:MiddleName", namespaces)
+    middle_name = middle_name.text if middle_name is not None and middle_name.text is not None else ""
+
     last_name = caregiver_info.find("ns1:LastName", namespaces).text if caregiver_info.find("ns1:LastName",
                                                                                             namespaces) is not None else ""
     birth_date = caregiver_info.find("ns1:BirthDate", namespaces).text if caregiver_info.find("ns1:BirthDate",
@@ -35,12 +43,9 @@ def transform_caregiver_info(xml_string, caregiver_id):
                                                                                                     namespaces) is not None else ""
     status_id = caregiver_info.find("ns1:Status/ns1:ID", namespaces).text if caregiver_info.find("ns1:Status/ns1:ID",
                                                                                                  namespaces) is not None else ""
-    application_date = caregiver_info.find("ns1:ApplicationDate", namespaces).text if caregiver_info.find(
-        "ns1:ApplicationDate",
-        namespaces) is not None else ""
-    terminated_date = caregiver_info.find("ns1:TerminatedDate", namespaces).text if caregiver_info.find(
-        "ns1:TerminatedDate",
-        namespaces) is not None else ""
+    application_date = get_text(caregiver_info, "ns1:ApplicationDate")
+    terminated_date = get_text(caregiver_info, "ns1:TerminatedDate")
+    terminated_date_xml = f"<TerminatedDate>{terminated_date}</TerminatedDate>" if terminated_date else ""
     hha_pca_registry = caregiver_info.find("ns1:RegistryNumber", namespaces).text if caregiver_info.find(
         "ns1:RegistryNumber",
         namespaces) is not None else ""
@@ -73,12 +78,13 @@ def transform_caregiver_info(xml_string, caregiver_id):
     # Get disciplines
     disciplines = [d.text for d in caregiver_info.findall(".//ns1:EmploymentTypes/ns1:Discipline", namespaces) if
                    d.text]
-    disciplines.append('CH')
+    disciplines = [d for d in disciplines if d != 'HCSS']
 
     # Construct new XML structure
     new_xml = f"""<CaregiverInfo>
     <CaregiverID>{caregiver_id}</CaregiverID>
     <FirstName>{first_name}</FirstName>
+    <MiddleName>{middle_name}</MiddleName>
     <LastName>{last_name}</LastName>
     <Gender>{gender}</Gender>
     <BirthDate>{birth_date}</BirthDate>
@@ -96,6 +102,7 @@ def transform_caregiver_info(xml_string, caregiver_id):
 
     new_xml += f"""
         <ApplicationDate>{application_date}</ApplicationDate>
+        {terminated_date_xml}
         <HHAPCARegistryNumber>{hha_pca_registry}</HHAPCARegistryNumber>
         <Address>
           <Zip5>{zip5}</Zip5>

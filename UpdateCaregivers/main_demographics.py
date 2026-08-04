@@ -15,8 +15,8 @@ async def main():
         "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Caregiver Codes for Discipline Updates.csv")
 
     results = await asyncio.gather(
-        *(safe_update_demographics(caregiver_code) for caregiver_code in
-          df_caregivers['Caregiver Code'])
+        *(safe_update_demographics(row['Caregiver Code'])
+          for _, row in df_caregivers.iterrows())
     )
 
     # Count successes and collect failure codes
@@ -29,10 +29,13 @@ async def main():
     print(f"Initial successes: {first_success_count}")
     # print(f"Secondary successes: {second_success_count}")
     print(f"Total failures: {len(failed_caregivers)}")
-    print("Failed Caregiver Codes and Error Messages:")
 
-    for admission_id, error_message in failed_caregivers:
-        print(f"Caregiver Code: {admission_id}, Error: {error_message}")
+    df_failed = pd.DataFrame(failed_caregivers, columns=["Caregiver Code", "Error Message"])
+    df_failed.to_csv(
+        "C:\\Users\\nochum.paltiel\\OneDrive - Anchor Home Health care\\Documents\\Exchange API Updates\\Failures - Discipline Updates.csv",
+        index=False)
+
+    print("Error details written to failed_caregivers.csv")
 
 
 asyncio.run(main())

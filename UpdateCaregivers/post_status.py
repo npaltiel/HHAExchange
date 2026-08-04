@@ -23,6 +23,8 @@ def transform_caregiver_info(xml_string, caregiver_id, status_id):
     # Extract required fields
     first_name = caregiver_info.find("ns1:FirstName", namespaces).text if caregiver_info.find("ns1:FirstName",
                                                                                               namespaces) is not None else ""
+    middle_name = caregiver_info.find("ns1:MiddleName", namespaces)
+    middle_name = middle_name.text if middle_name is not None and middle_name.text is not None else ""
     last_name = caregiver_info.find("ns1:LastName", namespaces).text if caregiver_info.find("ns1:LastName",
                                                                                             namespaces) is not None else ""
     birth_date = caregiver_info.find("ns1:BirthDate", namespaces).text if caregiver_info.find("ns1:BirthDate",
@@ -73,13 +75,13 @@ def transform_caregiver_info(xml_string, caregiver_id, status_id):
     new_xml = f"""<CaregiverInfo>
     <CaregiverID>{caregiver_id}</CaregiverID>
     <FirstName>{first_name}</FirstName>
+    <MiddleName>{middle_name}</MiddleName>
     <LastName>{last_name}</LastName>
     <Gender>{gender}</Gender>
     <BirthDate>{birth_date}</BirthDate>
     <SSN>{ssn}</SSN>
     <EmployeeType>{employee_type}</EmployeeType>
     <StatusID>{status_id}</StatusID>
-    <TerminatedDate>2025-03-31</TerminatedDate>
     <EmploymentTypes>"""
 
     # Add disciplines if present
