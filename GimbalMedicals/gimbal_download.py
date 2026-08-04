@@ -16,6 +16,7 @@ Requirements:
 
 import os
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -32,16 +33,26 @@ PROJECT_NAME_PA    = "TB screen (PA) 2026"
 DOWNLOAD_DIR    = Path(os.environ.get("GIMBAL_DOWNLOAD_DIR", r"C:\Users\nochum.paltiel\Documents\Exchange API Updates"))
 POLL_INTERVAL   = 10   # seconds between status checks
 POLL_TIMEOUT    = 300  # seconds before giving up (5 minutes)
+DATE_WINDOW_DAYS = int(os.environ.get("GIMBAL_DATE_WINDOW_DAYS", "60"))  # restrict export to signed dates within the last N days
+REPORT_CREATED_BY = os.environ.get("GIMBAL_REPORT_CREATED_BY", "Nochum Paltiel")  # match our own report row, not other users'
 
 
 def download_gimbal_report(
     email: str = None,
     password: str = None,
     project_name: str = None,
+    days_back: int = None,
+    created_by: str = None,
 ) -> Path:
     email        = email        or GIMBAL_EMAIL
     password     = password     or GIMBAL_PASSWORD
     project_name = project_name or PROJECT_NAME
+    days_back    = days_back if days_back is not None else DATE_WINDOW_DAYS
+    created_by   = created_by   or REPORT_CREATED_BY
+
+    end_date   = datetime.now()
+    start_date = end_date - timedelta(days=days_back)
+    date_range = f"{start_date.strftime('%m/%d/%Y')} to {end_date.strftime('%m/%d/%Y')}"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -75,6 +86,19 @@ def download_gimbal_report(
         # ── Step 4: Set Status = Approved ─────────────────────────────────────
         print("  Setting Status filter to Approved...")
         page.select_option("select#status", label="Approved")
+
+        print(f"  Setting Signed Date range: {date_range}")
+        page.locator("#submitted_date").click()          # open this picker instance
+        page.evaluate(
+            """([start, end]) => {
+                const drp = window.jQuery('#submitted_date').data('daterangepicker');
+                drp.setStartDate(start);
+                drp.setEndDate(end);
+                drp.container.find('button.applyBtn').trigger('click');  // apply only this picker
+            }""",
+            [start_date.strftime("%m/%d/%Y"), end_date.strftime("%m/%d/%Y")],
+        )
+
         page.click("button:has-text('Search')")
         page.wait_for_selector("text=Total Search Result", timeout=10000)
         print("  Filter applied.")
@@ -95,35 +119,49 @@ def download_gimbal_report(
         report_page.wait_for_selector("table", timeout=20000)
         print("  Report management page loaded.")
 
+        # Find the first row created by us (Created By = column 8), so we don't
+        # grab another user's concurrent report sitting at the top of the table.
+        def find_our_row():
+            rows = report_page.locator("#reportManagementDataTable tbody tr")
+            for i in range(rows.count()):
+                r = rows.nth(i)
+                if r.locator("td:nth-child(8)").inner_text().strip() == created_by:
+                    return r
+            return None
+
         elapsed = 0
         while elapsed < POLL_TIMEOUT:
             # Wait for DataTable to finish processing
             report_page.wait_for_selector("#reportManagementDataTable_processing", state="hidden", timeout=15000)
             report_page.wait_for_selector("#reportManagementDataTable tbody tr", timeout=10000)
 
-            # Debug: print all cell values in first row
-            cells = report_page.locator("#reportManagementDataTable tbody tr:first-child td").all()
-            for i, cell in enumerate(cells):
-                print(f"  Cell {i+1}: {cell.inner_text().strip()}")
-
-            status_text = report_page.locator("#reportManagementDataTable tbody tr:first-child td:nth-child(7)").inner_text()
-            if status_text.strip() == "Generated":
-                print(f"  Report ready after {elapsed}s.")
-                break
+            our_row = find_our_row()
+            if our_row is not None:
+                status_text = our_row.locator("td:nth-child(7)").inner_text().strip()
+                print(f"  Our report (by {created_by}) status: {status_text}")
+                if status_text == "Generated":
+                    print(f"  Report ready after {elapsed}s.")
+                    break
+            else:
+                print(f"  No report by {created_by} in the list yet.")
 
             print(f"  Not ready yet ({elapsed}s elapsed), retrying in {POLL_INTERVAL}s...")
             time.sleep(POLL_INTERVAL)
             report_page.reload()
             elapsed += POLL_INTERVAL
         else:
-            raise TimeoutError(f"Report was not generated within {POLL_TIMEOUT} seconds.")
+            raise TimeoutError(f"Report by {created_by} was not generated within {POLL_TIMEOUT} seconds.")
 
         # ── Step 7: Download the file ─────────────────────────────────────────
         print("  Downloading file...")
         DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+        our_row = find_our_row()
+        if our_row is None:
+            raise RuntimeError(f"Could not find a report by {created_by} to download.")
+
         with report_page.expect_download() as download_info:
-            report_page.locator("tbody tr:first-child").locator("a[title='Download'], button[title='Download'], .fa-download").first.click()
+            our_row.locator("a[title='Download'], button[title='Download'], .fa-download").first.click()
 
         download = download_info.value
         save_path = DOWNLOAD_DIR / download.suggested_filename
